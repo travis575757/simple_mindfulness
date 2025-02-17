@@ -11,6 +11,9 @@ import com.vtrifidgames.simplemindfulnesstimer.ui.screens.SessionHistoryScreen
 import com.vtrifidgames.simplemindfulnesstimer.ui.screens.SessionSummaryScreen
 import com.vtrifidgames.simplemindfulnesstimer.ui.screens.SettingsScreen
 
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+
 @Composable
 fun AppNavHost(navController: NavHostController) {
     NavHost(
@@ -29,10 +32,16 @@ fun AppNavHost(navController: NavHostController) {
         composable(Screen.SessionHistory.route) {
             SessionHistoryScreen(navController)
         }
-        composable(Screen.SessionDetail.route) {
+        composable(
+            route = Screen.SessionDetail.route,
+            arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+        ) { backStackEntry ->
             SessionDetailScreen(navController)
         }
-        composable(Screen.SessionSummary.route) {
+        composable(
+            route = Screen.SessionSummary.route,
+            arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+        ) { backStackEntry ->
             SessionSummaryScreen(navController)
         }
     }

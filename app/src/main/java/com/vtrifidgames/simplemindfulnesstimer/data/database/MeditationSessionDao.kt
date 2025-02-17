@@ -5,6 +5,8 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
+import com.vtrifidgames.simplemindfulnesstimer.data.database.MeditationSession
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -14,14 +16,20 @@ interface MeditationSessionDao {
     fun getAllSessions(): Flow<List<MeditationSession>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSession(session: MeditationSession)
+    suspend fun insertSession(session: MeditationSession): Long
 
-    // Delete a session by providing the entire object.
     @Delete
     suspend fun deleteSession(session: MeditationSession)
 
-    // Alternatively, delete a session by its id.
     @Query("DELETE FROM meditation_sessions WHERE id = :sessionId")
-    suspend fun deleteSessionById(sessionId: Int)
+    suspend fun deleteSessionById(sessionId: Long)
+
+    // New: Update a session.
+    @Update
+    suspend fun updateSession(session: MeditationSession)
+
+    // Get a session by id.
+    @Query("SELECT * FROM meditation_sessions WHERE id = :sessionId")
+    suspend fun getSessionById(sessionId: Long): MeditationSession?
 }
 

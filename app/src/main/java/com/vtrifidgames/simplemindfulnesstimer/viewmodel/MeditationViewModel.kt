@@ -34,7 +34,7 @@ class MeditationViewModel(private val repository: MeditationRepository) : ViewMo
     }
 
     // Remove a session by its id.
-    fun removeSessionById(sessionId: Int) {
+    fun removeSessionById(sessionId: Long) {
         viewModelScope.launch {
             repository.deleteById(sessionId)
         }

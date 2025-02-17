@@ -57,6 +57,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation("androidx.activity:activity-compose:1.7.0")
+    implementation("androidx.datastore:datastore-preferences:1.1.2")
 
     // Navigation Compose dependency
     implementation("androidx.navigation:navigation-compose:2.6.0")
