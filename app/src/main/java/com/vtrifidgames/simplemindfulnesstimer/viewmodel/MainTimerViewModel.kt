@@ -3,9 +3,11 @@ package com.vtrifidgames.simplemindfulnesstimer.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vtrifidgames.simplemindfulnesstimer.data.database.MeditationSession
+import com.vtrifidgames.simplemindfulnesstimer.data.database.Rating
 import com.vtrifidgames.simplemindfulnesstimer.data.repository.MeditationRepository
 import com.vtrifidgames.simplemindfulnesstimer.datastore.SettingsDataStore
 import com.vtrifidgames.simplemindfulnesstimer.utils.BellPlayer
+import com.vtrifidgames.simplemindfulnesstimer.utils.AlarmPlayer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -18,10 +20,10 @@ import java.util.concurrent.TimeUnit
 enum class TimerStatus {
     STOPPED,
     RUNNING,
-    PAUSED
+    PAUSED,
+    FINISHED
 }
 
-// TimerUIState now takes its default values as parameters.
 data class TimerUIState(
     val timerStatus: TimerStatus = TimerStatus.STOPPED,
     val totalDuration: Long,       // in seconds
@@ -33,7 +35,8 @@ data class TimerUIState(
 class MainTimerViewModel(
     private val repository: MeditationRepository,
     private val settingsDataStore: SettingsDataStore,
-    private val bellPlayer: BellPlayer
+    private val bellPlayer: BellPlayer,
+    private val alarmPlayer: AlarmPlayer
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -46,6 +49,9 @@ class MainTimerViewModel(
         )
     )
     val uiState = _uiState.asStateFlow()
+
+    // New: Track number of pauses.
+    private var pauseCount: Int = 0
 
     init {
         viewModelScope.launch {
@@ -69,7 +75,6 @@ class MainTimerViewModel(
         }
     }
 
-    // SharedFlow for one-time navigation events.
     private val _navigateToSummary = MutableSharedFlow<Long>(replay = 0)
     val navigateToSummary = _navigateToSummary.asSharedFlow()
 
@@ -80,8 +85,8 @@ class MainTimerViewModel(
         if (_uiState.value.timerStatus == TimerStatus.RUNNING) return
 
         sessionStartTime = System.currentTimeMillis()
+        pauseCount = 0  // Reset pause count when starting.
 
-        // Reset timeLeft if starting from STOPPED.
         if (_uiState.value.timerStatus == TimerStatus.STOPPED) {
             _uiState.value = _uiState.value.copy(timeLeft = _uiState.value.totalDuration)
         }
@@ -94,7 +99,6 @@ class MainTimerViewModel(
                 val currentTimeLeft = _uiState.value.timeLeft - 1
                 _uiState.value = _uiState.value.copy(timeLeft = currentTimeLeft)
 
-                // Play an interval bell if enabled.
                 if (_uiState.value.intervalBellEnabled &&
                     currentTimeLeft > 0 &&
                     (currentTimeLeft % _uiState.value.intervalBell == 0L)
@@ -103,7 +107,8 @@ class MainTimerViewModel(
                 }
             }
             if (_uiState.value.timeLeft <= 0 && _uiState.value.timerStatus == TimerStatus.RUNNING) {
-                completeSession()
+                _uiState.value = _uiState.value.copy(timerStatus = TimerStatus.FINISHED)
+                alarmPlayer.playAlarm()
             }
         }
     }
@@ -111,6 +116,7 @@ class MainTimerViewModel(
     fun pauseTimer() {
         if (_uiState.value.timerStatus == TimerStatus.RUNNING) {
             _uiState.value = _uiState.value.copy(timerStatus = TimerStatus.PAUSED)
+            pauseCount++ // Increment pause count on pause.
         }
     }
 
@@ -131,7 +137,8 @@ class MainTimerViewModel(
                     }
                 }
                 if (_uiState.value.timeLeft <= 0 && _uiState.value.timerStatus == TimerStatus.RUNNING) {
-                    completeSession()
+                    _uiState.value = _uiState.value.copy(timerStatus = TimerStatus.FINISHED)
+                    alarmPlayer.playAlarm()
                 }
             }
         }
@@ -146,20 +153,26 @@ class MainTimerViewModel(
     }
 
     /**
-     * Completes the session by saving it and emitting a navigation event.
+     * Called when the user presses the Finish button.
+     * This stops the alarm and emits a navigation event.
      */
-    private fun completeSession() {
+    fun finishSession() {
+        alarmPlayer.stopAlarm()
         timerJob?.cancel()
         _uiState.value = _uiState.value.copy(timerStatus = TimerStatus.STOPPED)
         val sessionEndTime = System.currentTimeMillis()
-        val totalDurationMillis = sessionEndTime - sessionStartTime
-        val durationInSeconds = TimeUnit.MILLISECONDS.toSeconds(totalDurationMillis)
-
+        val durationTotal = TimeUnit.MILLISECONDS.toSeconds(sessionEndTime - sessionStartTime)
+        // Calculate meditated time as the intended duration minus the time left.
+        val durationMeditated = _uiState.value.totalDuration - _uiState.value.timeLeft
         viewModelScope.launch {
             val insertedId = repository.insert(
                 MeditationSession(
                     date = sessionEndTime,
-                    duration = durationInSeconds,
+                    time = sessionStartTime,
+                    durationTotal = durationTotal,
+                    durationMeditated = durationMeditated,
+                    pauses = pauseCount,
+                    rating = Rating.AVERAGE, // Default rating
                     notes = null
                 )
             )
@@ -167,9 +180,6 @@ class MainTimerViewModel(
         }
     }
 
-    /**
-     * Play the interval bell sound using BellPlayer.
-     */
     private fun playIntervalBell() {
         bellPlayer.playBell()
     }

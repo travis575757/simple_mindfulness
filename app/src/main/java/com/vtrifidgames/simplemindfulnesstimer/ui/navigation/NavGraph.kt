@@ -13,13 +13,22 @@ import com.vtrifidgames.simplemindfulnesstimer.ui.screens.SettingsScreen
 
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.vtrifidgames.simplemindfulnesstimer.ui.screens.DashboardScreen
+import com.vtrifidgames.simplemindfulnesstimer.ui.screens.HomeScreen
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = Screen.MainTimer.route
+        startDestination = Screen.Home.route
     ) {
+        composable(Screen.Home.route) {
+            // HomeScreen will display the bottom navigation and manage its own inner NavHost.
+            HomeScreen(parentNavController = navController)
+        }
+        composable(Screen.Dashboard.route) {
+            DashboardScreen(navController)
+        }
         composable(Screen.MainTimer.route) {
             MainTimerScreen(navController)
         }

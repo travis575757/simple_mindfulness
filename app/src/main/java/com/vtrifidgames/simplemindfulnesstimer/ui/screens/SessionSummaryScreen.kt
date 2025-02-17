@@ -4,44 +4,47 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import com.vtrifidgames.simplemindfulnesstimer.data.database.MeditationDatabase
+import com.vtrifidgames.simplemindfulnesstimer.data.database.Rating
 import com.vtrifidgames.simplemindfulnesstimer.data.repository.MeditationRepository
 import com.vtrifidgames.simplemindfulnesstimer.ui.navigation.Screen
 import com.vtrifidgames.simplemindfulnesstimer.viewmodel.SessionSummaryViewModel
 import com.vtrifidgames.simplemindfulnesstimer.viewmodel.SessionSummaryViewModelFactory
 import androidx.compose.runtime.collectAsState
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun SessionSummaryScreen(navController: NavController) {
-    // Retrieve the current back stack entry to extract the sessionId argument.
-    val navBackStackEntry: NavBackStackEntry = navController.currentBackStackEntry!!
+    // Retrieve the sessionId from navigation arguments.
+    val navBackStackEntry = navController.currentBackStackEntry!!
     val sessionId = navBackStackEntry.arguments?.getLong("sessionId") ?: 0L
 
-    // Set up the Repository and ViewModel.
+    // Set up repository and ViewModel.
     val context = LocalContext.current
-    val database = MeditationDatabase.getDatabase(context)
+    val database = com.vtrifidgames.simplemindfulnesstimer.data.database.MeditationDatabase.getDatabase(context)
     val repository = MeditationRepository(database.meditationSessionDao())
     val viewModel: SessionSummaryViewModel = viewModel(
         factory = SessionSummaryViewModelFactory(repository, sessionId)
     )
 
-    // Collect the session details.
+    // Collect session details.
     val session by viewModel.session.collectAsState()
 
-    // Local state for the note text and to toggle its visibility.
+    // Local state for note text and to toggle its visibility.
     var notesText by remember { mutableStateOf("") }
     var showNoteField by remember { mutableStateOf(false) }
+    // Local state for rating; initially null means not selected.
+    var selectedRating by remember { mutableStateOf<Rating?>(null) }
 
-    // When the session loads, initialize notesText (and optionally show the note field if a note exists).
     LaunchedEffect(session) {
         session?.notes?.let {
             notesText = it
@@ -49,7 +52,14 @@ fun SessionSummaryScreen(navController: NavController) {
                 showNoteField = true
             }
         }
+        // If the session already has a rating, pre-select it.
+        session?.let {
+            selectedRating = it.rating
+        }
     }
+
+    // Formatter for timestamps.
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
     Column(
         modifier = Modifier
@@ -58,25 +68,51 @@ fun SessionSummaryScreen(navController: NavController) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "Session Summary", modifier = Modifier.padding(bottom = 16.dp))
+        Text(text = "Session Summary", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 16.dp))
 
-        var currentSession = session;
+        var currentSession = session
         if (currentSession == null) {
-            Text(text = "Loading session details...")
+            Text("Loading session details...")
         } else {
-            // Display session details.
             Text(text = "Session ID: ${currentSession.id}")
-            Text(text = "Date: ${currentSession.date}")
-            Text(text = "Duration: ${currentSession.duration} sec")
+            Text(text = "Finish Date: ${dateFormat.format(Date(currentSession.date))}")
+            Text(text = "Start Time: ${dateFormat.format(Date(currentSession.time))}")
+            Text(text = "Total Duration: ${currentSession.durationTotal} sec")
+            Text(text = "Meditated Duration: ${currentSession.durationMeditated} sec")
+            Text(text = "Pauses: ${currentSession.pauses}")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Rating selection row.
+        Text(text = "Select Rating:", style = MaterialTheme.typography.bodyLarge)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Rating.values().forEach { ratingOption ->
+                Button(
+                    onClick = {
+                        selectedRating = ratingOption
+                        viewModel.updateRating(ratingOption)
+                    },
+                    // Highlight selected rating.
+                    colors = if (selectedRating == ratingOption)
+                        androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    else androidx.compose.material3.ButtonDefaults.buttonColors()
+                ) {
+                    Text(text = ratingOption.name.replace("_", " "))
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Toggle button: "Add Note" when hidden, "Remove Note" when the note field is visible.
+        // Toggle button for notes.
         Button(onClick = {
             showNoteField = !showNoteField
             if (!showNoteField) {
-                // If toggled off, clear the note.
                 notesText = ""
             }
         }) {
@@ -85,7 +121,6 @@ fun SessionSummaryScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Display the note text field if toggled visible.
         if (showNoteField) {
             OutlinedTextField(
                 value = notesText,
@@ -96,14 +131,17 @@ fun SessionSummaryScreen(navController: NavController) {
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        // The Done button saves the note (if non-empty) before navigating away.
-        Button(onClick = {
-            if (notesText.isNotEmpty()) {
-                viewModel.updateNotes(notesText)
-            }
-            navController.navigate(Screen.MainTimer.route)
-        }) {
+        // The Done button is enabled only if a rating is selected.
+        Button(
+            onClick = {
+                if (notesText.isNotEmpty()) {
+                    viewModel.updateNotes(notesText)
+                }
+                // Navigate to Main Timer screen.
+                navController.navigate(Screen.MainTimer.route)
+            },
+            enabled = (selectedRating != null)
+        ) {
             Text("Done")
         }
     }

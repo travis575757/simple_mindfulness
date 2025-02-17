@@ -19,9 +19,10 @@ class AnalyticsViewModel(private val repository: MeditationRepository) : ViewMod
     val analyticsState: StateFlow<AnalyticsState> = repository.allSessions
         .map { sessions ->
             val total = sessions.size
-            val avg = if (total > 0) sessions.sumOf { it.duration } / total.toDouble() else 0.0
+            val avg = if (total > 0) sessions.sumOf { it.durationMeditated } / total.toDouble() else 0.0
             AnalyticsState(total, avg)
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, AnalyticsState())
+
 }
 

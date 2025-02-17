@@ -1,6 +1,7 @@
 package com.vtrifidgames.simplemindfulnesstimer.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -8,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -18,24 +20,16 @@ import androidx.compose.runtime.collectAsState
 
 @Composable
 fun SettingsScreen(navController: NavController) {
-    // Use the application context to ensure persistence.
+    // Use the application context.
     val context = LocalContext.current.applicationContext
     val dataStore = remember { SettingsDataStore(context) }
-
-    // Obtain the ViewModel using our custom factory.
-    val viewModel: SettingsViewModel = viewModel(
-        factory = SettingsViewModelFactory(dataStore)
-    )
-
-    // Collect current settings values.
+    val viewModel: SettingsViewModel = viewModel(factory = SettingsViewModelFactory(dataStore))
     val bellInterval by viewModel.bellInterval.collectAsState()
     val defaultTimerDuration by viewModel.defaultTimerDuration.collectAsState()
 
-    // Local state for text fields.
     var bellIntervalText by remember { mutableStateOf(bellInterval.toString()) }
     var defaultTimerDurationText by remember { mutableStateOf(defaultTimerDuration.toString()) }
 
-    // Update local text states when the underlying DataStore values change.
     LaunchedEffect(bellInterval) {
         bellIntervalText = bellInterval.toString()
     }
@@ -51,43 +45,29 @@ fun SettingsScreen(navController: NavController) {
         verticalArrangement = Arrangement.Center
     ) {
         Text("Settings", modifier = Modifier.padding(bottom = 16.dp))
-
-        // Input field for Bell Interval.
         OutlinedTextField(
             value = bellIntervalText,
-            onValueChange = { bellIntervalText = it },
+            onValueChange = { bellIntervalText = it.filter { ch -> ch.isDigit() } },
             label = { Text("Bell Interval (seconds)") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
-
         Spacer(modifier = Modifier.height(16.dp))
-
-        // Input field for Default Timer Duration.
         OutlinedTextField(
             value = defaultTimerDurationText,
-            onValueChange = { defaultTimerDurationText = it },
+            onValueChange = { defaultTimerDurationText = it.filter { ch -> ch.isDigit() } },
             label = { Text("Default Timer Duration (seconds)") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
-
         Spacer(modifier = Modifier.height(16.dp))
-
-        // Save button to update the settings.
         Button(onClick = {
-            // Convert and update if valid.
-            bellIntervalText.toLongOrNull()?.let { newInterval ->
-                viewModel.updateBellInterval(newInterval)
-            }
-            defaultTimerDurationText.toLongOrNull()?.let { newDuration ->
-                viewModel.updateDefaultTimerDuration(newDuration)
-            }
+            bellIntervalText.toLongOrNull()?.let { viewModel.updateBellInterval(it) }
+            defaultTimerDurationText.toLongOrNull()?.let { viewModel.updateDefaultTimerDuration(it) }
         }) {
             Text("Save Settings")
         }
-
         Spacer(modifier = Modifier.height(16.dp))
-
-        // Back button to return to the previous screen.
         Button(onClick = { navController.popBackStack() }) {
             Text("Back")
         }
