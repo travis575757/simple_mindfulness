@@ -13,4 +13,3 @@ class AnalyticsViewModelFactory(private val repository: MeditationRepository) : 
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
-

@@ -48,6 +48,7 @@ class MainTimerViewModel(
             intervalBellEnabled = false
         )
     )
+
     val uiState = _uiState.asStateFlow()
 
     // New: Track number of pauses.
@@ -71,6 +72,13 @@ class MainTimerViewModel(
                         intervalBell = newBell
                     )
                 }
+            }
+        }
+        viewModelScope.launch {
+            settingsDataStore.useBellFlow.collect { useBell ->
+                _uiState.value = _uiState.value.copy(
+                    intervalBellEnabled = useBell
+                )
             }
         }
     }
@@ -115,6 +123,8 @@ class MainTimerViewModel(
 
     fun pauseTimer() {
         if (_uiState.value.timerStatus == TimerStatus.RUNNING) {
+            // Cancel the timer job immediately so no extra delay occurs.
+            timerJob?.cancel()
             _uiState.value = _uiState.value.copy(timerStatus = TimerStatus.PAUSED)
             pauseCount++ // Increment pause count on pause.
         }
@@ -144,12 +154,13 @@ class MainTimerViewModel(
         }
     }
 
-    fun resetTimer() {
-        timerJob?.cancel()
-        _uiState.value = _uiState.value.copy(
-            timerStatus = TimerStatus.STOPPED,
-            timeLeft = _uiState.value.totalDuration
-        )
+    fun setTotalDuration(newDuration: Long) {
+        if (_uiState.value.timerStatus == TimerStatus.STOPPED) {
+            _uiState.value = _uiState.value.copy(
+                totalDuration = newDuration,
+                timeLeft = newDuration
+            )
+        }
     }
 
     /**
@@ -159,10 +170,8 @@ class MainTimerViewModel(
     fun finishSession() {
         alarmPlayer.stopAlarm()
         timerJob?.cancel()
-        _uiState.value = _uiState.value.copy(timerStatus = TimerStatus.STOPPED)
         val sessionEndTime = System.currentTimeMillis()
         val durationTotal = TimeUnit.MILLISECONDS.toSeconds(sessionEndTime - sessionStartTime)
-        // Calculate meditated time as the intended duration minus the time left.
         val durationMeditated = _uiState.value.totalDuration - _uiState.value.timeLeft
         viewModelScope.launch {
             val insertedId = repository.insert(
@@ -179,6 +188,7 @@ class MainTimerViewModel(
             _navigateToSummary.emit(insertedId)
         }
     }
+
 
     private fun playIntervalBell() {
         bellPlayer.playBell()

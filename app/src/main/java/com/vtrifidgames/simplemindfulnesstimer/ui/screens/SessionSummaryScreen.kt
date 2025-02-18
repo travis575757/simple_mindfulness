@@ -1,10 +1,15 @@
 package com.vtrifidgames.simplemindfulnesstimer.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -12,15 +17,36 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.vtrifidgames.simplemindfulnesstimer.data.database.MeditationDatabase
 import com.vtrifidgames.simplemindfulnesstimer.data.database.Rating
 import com.vtrifidgames.simplemindfulnesstimer.data.repository.MeditationRepository
 import com.vtrifidgames.simplemindfulnesstimer.ui.navigation.Screen
 import com.vtrifidgames.simplemindfulnesstimer.viewmodel.SessionSummaryViewModel
 import com.vtrifidgames.simplemindfulnesstimer.viewmodel.SessionSummaryViewModelFactory
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.draw.alpha
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+// Convert a rating enum to the number of stars (1..5).
+private fun ratingToStars(rating: Rating): Int = when (rating) {
+    Rating.VERY_POOR -> 1
+    Rating.POOR -> 2
+    Rating.AVERAGE -> 3
+    Rating.GOOD -> 4
+    Rating.EXCELLENT -> 5
+}
+
+// Convert a number of stars (1..5) to a rating enum.
+private fun starsToRating(stars: Int): Rating = when (stars) {
+    1 -> Rating.VERY_POOR
+    2 -> Rating.POOR
+    3 -> Rating.AVERAGE
+    4 -> Rating.GOOD
+    5 -> Rating.EXCELLENT
+    else -> Rating.AVERAGE
+}
 
 @Composable
 fun SessionSummaryScreen(navController: NavController) {
@@ -30,117 +56,101 @@ fun SessionSummaryScreen(navController: NavController) {
 
     // Set up repository and ViewModel.
     val context = LocalContext.current
-    val database = com.vtrifidgames.simplemindfulnesstimer.data.database.MeditationDatabase.getDatabase(context)
+    val database = MeditationDatabase.getDatabase(context)
     val repository = MeditationRepository(database.meditationSessionDao())
     val viewModel: SessionSummaryViewModel = viewModel(
         factory = SessionSummaryViewModelFactory(repository, sessionId)
     )
 
-    // Collect session details.
+    // Observe the session details.
     val session by viewModel.session.collectAsState()
 
-    // Local state for note text and to toggle its visibility.
-    var notesText by remember { mutableStateOf("") }
-    var showNoteField by remember { mutableStateOf(false) }
-    // Local state for rating; initially null means not selected.
-    var selectedRating by remember { mutableStateOf<Rating?>(null) }
+    // Local state for star rating (1..5). Zero means not selected yet.
+    var selectedStars by remember { mutableStateOf(0) }
 
+    // When session loads, set the local stars to match the session’s rating.
     LaunchedEffect(session) {
-        session?.notes?.let {
-            notesText = it
-            if (it.isNotEmpty()) {
-                showNoteField = true
-            }
-        }
-        // If the session already has a rating, pre-select it.
         session?.let {
-            selectedRating = it.rating
+            selectedStars = ratingToStars(it.rating)
         }
     }
 
-    // Formatter for timestamps.
-    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+    // More human-readable date/time format.
+    val dateFormat = SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault())
 
+    // A column that is centered vertically in the screen.
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,  // Center vertically
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Session Summary", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 16.dp))
-
-        var currentSession = session
-        if (currentSession == null) {
-            Text("Loading session details...")
-        } else {
-            Text(text = "Session ID: ${currentSession.id}")
-            Text(text = "Finish Date: ${dateFormat.format(Date(currentSession.date))}")
-            Text(text = "Start Time: ${dateFormat.format(Date(currentSession.time))}")
-            Text(text = "Total Duration: ${currentSession.durationTotal} sec")
-            Text(text = "Meditated Duration: ${currentSession.durationMeditated} sec")
-            Text(text = "Pauses: ${currentSession.pauses}")
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Rating selection row.
-        Text(text = "Select Rating:", style = MaterialTheme.typography.bodyLarge)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+        // 1) Session Details in a card.
+        OutlinedCard(
+            modifier = Modifier
+                .fillMaxWidth()
         ) {
-            Rating.values().forEach { ratingOption ->
-                Button(
-                    onClick = {
-                        selectedRating = ratingOption
-                        viewModel.updateRating(ratingOption)
-                    },
-                    // Highlight selected rating.
-                    colors = if (selectedRating == ratingOption)
-                        androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    else androidx.compose.material3.ButtonDefaults.buttonColors()
-                ) {
-                    Text(text = ratingOption.name.replace("_", " "))
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = "Session Summary",
+                    style = MaterialTheme.typography.headlineMedium
+                )
+
+                val currentSession = session
+                if (currentSession == null) {
+                    Text(
+                        text = "Loading session details...",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                } else {
+                    Text("Finish Date: ${dateFormat.format(Date(currentSession.date))}", style = MaterialTheme.typography.bodyLarge)
+                    Text("Start Time: ${dateFormat.format(Date(currentSession.time))}", style = MaterialTheme.typography.bodyLarge)
+                    Text("Total Duration: ${currentSession.durationTotal} sec", style = MaterialTheme.typography.bodyLarge)
+                    Text("Meditated Duration: ${currentSession.durationMeditated} sec", style = MaterialTheme.typography.bodyLarge)
+                    Text("Pauses: ${currentSession.pauses}", style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Toggle button for notes.
-        Button(onClick = {
-            showNoteField = !showNoteField
-            if (!showNoteField) {
-                notesText = ""
+        // 2) Star Rating
+        Text(text = "Rate Your Session", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            for (star in 1..5) {
+                val icon = if (star <= selectedStars) Icons.Filled.Star else Icons.Outlined.Star
+                Icon(
+                    imageVector = icon,
+                    contentDescription = "Star $star",
+                    modifier = Modifier
+                        .size(40.dp)
+                        .padding(4.dp)
+                        .alpha(if (star > selectedStars) 0.25f else 1.0f)
+                        .clickable {
+                            selectedStars = star
+                            viewModel.updateRating(starsToRating(star))
+                        },
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
-        }) {
-            Text(text = if (showNoteField) "Remove Note" else "Add Note")
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        if (showNoteField) {
-            OutlinedTextField(
-                value = notesText,
-                onValueChange = { notesText = it },
-                label = { Text("Notes") },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        // The Done button is enabled only if a rating is selected.
+        // 3) Done Button
         Button(
-            onClick = {
-                if (notesText.isNotEmpty()) {
-                    viewModel.updateNotes(notesText)
-                }
-                // Navigate to Main Timer screen.
-                navController.navigate(Screen.MainTimer.route)
-            },
-            enabled = (selectedRating != null)
+            onClick = { navController.navigate(Screen.Home.route) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = selectedStars > 0
         ) {
             Text("Done")
         }

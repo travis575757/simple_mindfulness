@@ -1,6 +1,5 @@
 package com.vtrifidgames.simplemindfulnesstimer.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -12,25 +11,63 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = Lime80,
+    secondary = LimeGrey80,
+    tertiary = Green80
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = Lime40,
+    secondary = LimeGrey40,
+    tertiary = Green40,
+
+    secondaryContainer = LimeGrey40,
 
     /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+onPrimary = Lime40,
+primaryContainer = Lime40,
+onPrimaryContainer = Lime40,
+inversePrimary = Lime40,
+onSecondary = Lime40,
+
+secondaryContainer = Lime40,
+onSecondaryContainer = Lime40,
+
+onTertiary = Lime40,
+tertiaryContainer = Lime40,
+onTertiaryContainer = Lime40,
+background = Lime40,
+onBackground = Lime40,
+surface = Lime40,
+onSurface = Lime40,
+surfaceVariant = Lime40,
+onSurfaceVariant = Lime40,
+surfaceTint = Lime40,
+inverseOnSurface = Lime40,
+error = Lime40,
+onError = Lime40,
+errorContainer = Lime40,
+onErrorContainer = Lime40,
+outline = Lime40,
+outlineVariant = Lime40,
+scrim = Lime40,
+surfaceBright = Lime40,
+surfaceContainer = Lime40,
+surfaceContainerHigh = Lime40,
+surfaceContainerHighest = Lime40,
+surfaceContainerLow = Lime40,
+surfaceContainerLowest = Lime40,
+surfaceDim = Lime40,
+
+
+background = Color(0xFFFFFBFE),
+surface = Color(0xFFFFFBFE),
+onPrimary = Color.White,
+onSecondary = Color.White,
+onTertiary = Color.White,
+onBackground = Color(0xFF1C1B1F),
+onSurface = Color(0xFF1C1B1F),
+*/
 )
 
 @Composable

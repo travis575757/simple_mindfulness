@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            SimpleMindfulnessTimerTheme {
+            SimpleMindfulnessTimerTheme(dynamicColor = false) {
                 // Create the NavController
                 val navController = rememberNavController()
                 // Host the NavGraph
