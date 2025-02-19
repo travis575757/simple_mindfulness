@@ -13,3 +13,12 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+tags
+local.properties
+*.keystore
+*.jks
+/app/release/
+/.gradle/
+/.idea/
+
