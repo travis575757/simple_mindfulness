@@ -5,11 +5,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,10 +78,14 @@ fun SessionSummaryScreen(navController: NavController) {
         }
     }
 
+    // Local states for note editing.
+    var showNoteEditor by remember { mutableStateOf(false) }
+    var noteText by remember { mutableStateOf("") }
+    var showRemoveNoteDialog by remember { mutableStateOf(false) }
+
     // More human-readable date/time format.
     val dateFormat = SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault())
 
-    // A column that is centered vertically in the screen.
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -87,10 +94,7 @@ fun SessionSummaryScreen(navController: NavController) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // 1) Session Details in a card.
-        OutlinedCard(
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
+        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -100,7 +104,6 @@ fun SessionSummaryScreen(navController: NavController) {
                     text = "Session Summary",
                     style = MaterialTheme.typography.headlineMedium
                 )
-
                 val currentSession = session
                 if (currentSession == null) {
                     Text(
@@ -108,11 +111,26 @@ fun SessionSummaryScreen(navController: NavController) {
                         style = MaterialTheme.typography.bodyLarge
                     )
                 } else {
-                    Text("Finish Date: ${dateFormat.format(Date(currentSession.date))}", style = MaterialTheme.typography.bodyLarge)
-                    Text("Start Time: ${dateFormat.format(Date(currentSession.time))}", style = MaterialTheme.typography.bodyLarge)
-                    Text("Total Duration: ${currentSession.durationTotal} sec", style = MaterialTheme.typography.bodyLarge)
-                    Text("Meditated Duration: ${currentSession.durationMeditated} sec", style = MaterialTheme.typography.bodyLarge)
-                    Text("Pauses: ${currentSession.pauses}", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = "Finish Date: ${dateFormat.format(Date(currentSession.date))}",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "Start Time: ${dateFormat.format(Date(currentSession.time))}",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "Total Duration: ${currentSession.durationTotal} sec",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "Meditated Duration: ${currentSession.durationMeditated} sec",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "Pauses: ${currentSession.pauses}",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
                 }
             }
         }
@@ -146,9 +164,76 @@ fun SessionSummaryScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 3) Done Button
+        // 3) Note Section
+        val currentSession = session
+        if (currentSession != null) {
+            if (!currentSession.notes.isNullOrBlank() && !showNoteEditor) {
+                // Display the current note with a Remove Note button.
+                Text(
+                    text = "Note: ${currentSession.notes}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = { showRemoveNoteDialog = true }) {
+                    Text("Remove Note")
+                }
+            } else {
+                if (!showNoteEditor) {
+                    Button(onClick = { showNoteEditor = true }) {
+                        Text("Add Note")
+                    }
+                }
+                if (showNoteEditor) {
+                    OutlinedTextField(
+                        value = noteText,
+                        onValueChange = { noteText = it },
+                        label = { Text("Enter note") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            showNoteEditor = false
+                            noteText = ""
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        }
+
+        if (showRemoveNoteDialog) {
+            AlertDialog(
+                onDismissRequest = { showRemoveNoteDialog = false },
+                title = { Text("Confirm Removal") },
+                text = { Text("Are you sure you want to remove the note?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.updateNotes("")
+                        showRemoveNoteDialog = false
+                    }) {
+                        Text("Remove")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRemoveNoteDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 4) Done Button - note submission is handled here
         Button(
-            onClick = { navController.navigate(Screen.Home.route) },
+            onClick = {
+                if (showNoteEditor && noteText.isNotBlank()) {
+                    viewModel.updateNotes(noteText)
+                }
+                navController.navigate(Screen.Home.route)
+            },
             modifier = Modifier.fillMaxWidth(),
             enabled = selectedStars > 0
         ) {
@@ -156,3 +241,4 @@ fun SessionSummaryScreen(navController: NavController) {
         }
     }
 }
+
