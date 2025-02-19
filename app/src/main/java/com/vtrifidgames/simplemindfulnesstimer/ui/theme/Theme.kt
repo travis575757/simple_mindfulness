@@ -12,10 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Lime80,
-    secondary = LimeGrey80,
-    tertiary = Green80,
-    secondaryContainer = LimeGrey80,
+
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -85,6 +82,7 @@ fun SimpleMindfulnessTimerTheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    /*
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
@@ -94,6 +92,9 @@ fun SimpleMindfulnessTimerTheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
+    */
+    // TODO colors schemes
+    val colorScheme = LightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,
