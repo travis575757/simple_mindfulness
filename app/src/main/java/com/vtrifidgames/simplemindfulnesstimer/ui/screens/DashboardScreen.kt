@@ -66,32 +66,28 @@ fun DashboardScreen(navController: NavController) {
             modifier = Modifier.padding(bottom = 24.dp).align(Alignment.CenterHorizontally)
         )
         // Card containing the metrics.
-        OutlinedCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                // Only display a metric if its value is nonzero.
-                if (metrics.streak > 0) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Streak", style = MaterialTheme.typography.titleMedium)
-                        Text(text = "${metrics.streak} days", style = MaterialTheme.typography.bodyLarge)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-                if (metrics.lastWeekDuration > 0) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Last Week", style = MaterialTheme.typography.titleMedium)
-                        Text(text = formatDurationHuman(metrics.lastWeekDuration), style = MaterialTheme.typography.bodyLarge)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-                if (metrics.totalDuration > 0) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Total", style = MaterialTheme.typography.titleMedium)
-                        Text(text = formatDurationHuman(metrics.totalDuration), style = MaterialTheme.typography.bodyLarge)
-                    }
+        if (metrics.streak > 0 || metrics.lastWeekDuration > 0 || metrics.totalDuration > 0) {
+            OutlinedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Only display a metric if its value is nonzero.
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(text = "Streak", style = MaterialTheme.typography.titleMedium)
+                            Text(text = "${metrics.streak} day(s)", style = MaterialTheme.typography.bodyLarge)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(text = "Last Week", style = MaterialTheme.typography.titleMedium)
+                            Text(text = formatDurationHuman(metrics.lastWeekDuration), style = MaterialTheme.typography.bodyLarge)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(text = "Total", style = MaterialTheme.typography.titleMedium)
+                            Text(text = formatDurationHuman(metrics.totalDuration), style = MaterialTheme.typography.bodyLarge)
+                        }
                 }
             }
         }

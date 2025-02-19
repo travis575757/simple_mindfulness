@@ -11,8 +11,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
@@ -41,17 +45,32 @@ import kotlin.math.pow
 
 @Composable
 fun AnalyticsScreen(navController: NavController) {
-    // Obtain the ViewModel
     val context = LocalContext.current
     val database = MeditationDatabase.getDatabase(context)
     val repository = MeditationRepository(database.meditationSessionDao())
     val viewModel: AnalyticsViewModel = viewModel(factory = AnalyticsViewModelFactory(repository))
 
-    // Observe the selected interval and analytics data
+    // Collect all sessions to check if any exist.
+    val sessions by repository.allSessions.collectAsState(initial = emptyList())
+
+    if (sessions.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Check back soon to see how far you've come!",
+                style = MaterialTheme.typography.headlineLarge,
+                textAlign = TextAlign.Center
+            )
+        }
+        return
+    }
+
+    // Otherwise, proceed with the analytics display.
     val selectedInterval by viewModel.selectedInterval.collectAsState()
     val analyticsData by viewModel.analyticsData.collectAsState()
 
-    // Main layout
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -60,7 +79,7 @@ fun AnalyticsScreen(navController: NavController) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
-        // Top row: interval selection.
+        // Interval selection row.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -85,8 +104,10 @@ fun AnalyticsScreen(navController: NavController) {
                 seconds < 60.0 -> String.format(Locale.getDefault(), "%.0f seconds", seconds)
                 seconds < 3600.0 -> {
                     val minutes = seconds / 60.0
-                    if (seconds % 60.0 < 15.0) String.format(Locale.getDefault(), "%.0f minutes", minutes)
-                    else String.format(Locale.getDefault(), "%.1f minutes", minutes)
+                    if (seconds % 60.0 < 15.0)
+                        String.format(Locale.getDefault(), "%.0f minutes", minutes)
+                    else
+                        String.format(Locale.getDefault(), "%.1f minutes", minutes)
                 }
                 else -> {
                     val hours = seconds / 3600.0
@@ -95,7 +116,7 @@ fun AnalyticsScreen(navController: NavController) {
             }
         }
 
-        // ChartCards for each metric.
+        // Chart cards for each metric.
         VerticalChartCard(
             title = "Total Time Meditated",
             data = entryModelOf(*(analyticsData.totalMeditationTime.toTypedArray())),
@@ -131,10 +152,9 @@ fun AnalyticsScreen(navController: NavController) {
             yAxisTitle = "Rating"
         )
 
-        // Add spacer before the button
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Add the button to navigate to SessionHistoryScreen
+        // Button to navigate to the session history.
         Button(
             onClick = { navController.navigate("session_history") },
             modifier = Modifier.fillMaxWidth()
@@ -144,6 +164,7 @@ fun AnalyticsScreen(navController: NavController) {
     }
 }
 
+
 @Composable
 fun VerticalChartCard(
     title: String,
@@ -152,7 +173,9 @@ fun VerticalChartCard(
     yAxisTitle: String
 ) {
     // Create an axis label component for the axes.
-    val label = axisLabelComponent()
+    val label = axisLabelComponent(
+        color = Color.Black,
+    )
 
     // Compute maxY and minY from the data.
     val maxYData = data.maxY

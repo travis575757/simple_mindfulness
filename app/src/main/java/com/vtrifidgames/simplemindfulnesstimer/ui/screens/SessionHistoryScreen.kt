@@ -41,25 +41,25 @@ import com.vtrifidgames.simplemindfulnesstimer.viewmodel.MeditationViewModelFact
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.core.content.FileProvider
+import java.io.File
+import java.util.*
 
 @Composable
 fun SessionHistoryScreen(navController: NavController) {
-    // Retrieve context and set up database and repository.
     val context = LocalContext.current
     val database = MeditationDatabase.getDatabase(context)
     val repository = MeditationRepository(database.meditationSessionDao())
-
-    // Obtain the ViewModel.
-    val viewModel: MeditationViewModel = viewModel(
-        factory = MeditationViewModelFactory(repository)
-    )
+    val viewModel: MeditationViewModel = viewModel(factory = MeditationViewModelFactory(repository))
     val sessions = viewModel.sessions.collectAsState().value
 
-    // Use Scaffold with a bottomBar that applies navigationBar insets.
     Scaffold(
-        contentWindowInsets = WindowInsets.systemBars, // Let content respect system insets.
+        contentWindowInsets = WindowInsets.systemBars,
         bottomBar = {
-            // Apply navigation bar insets plus additional padding.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -89,6 +89,14 @@ fun SessionHistoryScreen(navController: NavController) {
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+                // Export to CSV button
+                Button(
+                    onClick = { exportSessionsToCsv(sessions, context) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Export to CSV")
+                }
+                Spacer(modifier = Modifier.height(16.dp))
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -97,7 +105,6 @@ fun SessionHistoryScreen(navController: NavController) {
                         SessionHistoryItem(
                             session = session,
                             onItemClick = {
-                                // Navigate to SessionDetailScreen using the session's ID.
                                 navController.navigate("session_detail/${session.id}")
                             },
                             onDelete = { viewModel.removeSession(it) }
@@ -108,6 +115,46 @@ fun SessionHistoryScreen(navController: NavController) {
         }
     )
 }
+
+fun exportSessionsToCsv(sessions: List<MeditationSession>, context: Context) {
+    // Build CSV content
+    val csvHeader = "Session ID,Finish Date,Start Time,Total Duration,Meditated Duration,Pauses,Rating,Notes\n"
+    val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+    val csvBody = sessions.joinToString("\n") { session ->
+        val finishDate = dateFormatter.format(Date(session.date))
+        val startTime = dateFormatter.format(Date(session.time))
+        val ratingStr = session.rating.name
+        val notesStr = session.notes?.replace(",", " ")?.replace("\n", " ") ?: ""
+        "${session.id},$finishDate,$startTime,${session.durationTotal},${session.durationMeditated},${session.pauses},$ratingStr,$notesStr"
+    }
+    val csvContent = csvHeader + csvBody
+
+    try {
+        // Write CSV to cache directory
+        val fileName = "meditation_sessions.csv"
+        val file = File(context.cacheDir, fileName)
+        file.writeText(csvContent)
+
+        // Get URI via FileProvider (ensure FileProvider is configured in your manifest)
+        val fileUri: Uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+
+        // Create share intent
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/csv"
+            putExtra(Intent.EXTRA_STREAM, fileUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Export sessions to CSV"))
+    } catch (e: Exception) {
+        e.printStackTrace()
+        Toast.makeText(context, "Failed to export CSV", Toast.LENGTH_SHORT).show()
+    }
+}
+
 
 @Composable
 fun SessionHistoryItem(
