@@ -81,49 +81,58 @@ class AnalyticsViewModel(private val repository: MeditationRepository) : ViewMod
         val periods = mutableListOf<Long>()
         val labels = mutableListOf<String>()
         val calendar = Calendar.getInstance()
+
         val dateFormat = when (interval) {
             AnalyticsInterval.DAYS -> SimpleDateFormat("EEE", Locale.getDefault()) // e.g., Mon, Tue
-            AnalyticsInterval.WEEKS -> SimpleDateFormat("'Wk'w", Locale.getDefault()) // e.g., Wk1
-            AnalyticsInterval.MONTHS -> SimpleDateFormat("MMM", Locale.getDefault()) // e.g., Jan
+            AnalyticsInterval.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault()) // e.g., 05/03
+            AnalyticsInterval.MONTHS -> SimpleDateFormat("MMM", Locale.getDefault())    // e.g., Jan
         }
+
         val numPeriods = when (interval) {
             AnalyticsInterval.DAYS -> 7
             AnalyticsInterval.WEEKS -> 4
-            AnalyticsInterval.MONTHS -> 12
+            AnalyticsInterval.MONTHS -> 6
         }
-        // Start from today
+
+        // Start from the first day of the current month for months.
         calendar.timeInMillis = System.currentTimeMillis()
-        // Reset time fields
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
 
-        for (i in (numPeriods - 1) downTo 0) {
+        if (interval == AnalyticsInterval.MONTHS) {
+            calendar.set(Calendar.DAY_OF_MONTH, 1)
+        }
+
+        for (i in 0 until numPeriods) {
             val periodCalendar = calendar.clone() as Calendar
             when (interval) {
                 AnalyticsInterval.DAYS -> {
                     periodCalendar.add(Calendar.DAY_OF_YEAR, -i)
-                    periodCalendar.set(Calendar.HOUR_OF_DAY, 0)
                 }
                 AnalyticsInterval.WEEKS -> {
                     periodCalendar.add(Calendar.WEEK_OF_YEAR, -i)
                     periodCalendar.set(Calendar.DAY_OF_WEEK, periodCalendar.firstDayOfWeek)
-                    periodCalendar.set(Calendar.HOUR_OF_DAY, 0)
                 }
                 AnalyticsInterval.MONTHS -> {
                     periodCalendar.add(Calendar.MONTH, -i)
                     periodCalendar.set(Calendar.DAY_OF_MONTH, 1)
-                    periodCalendar.set(Calendar.HOUR_OF_DAY, 0)
                 }
             }
+
+            periodCalendar.set(Calendar.HOUR_OF_DAY, 0)
             periodCalendar.set(Calendar.MINUTE, 0)
             periodCalendar.set(Calendar.SECOND, 0)
             periodCalendar.set(Calendar.MILLISECOND, 0)
-            val periodKey = periodCalendar.timeInMillis
-            periods.add(periodKey)
-            labels.add(dateFormat.format(periodCalendar.time))
+
+            periods.add(periodCalendar.timeInMillis)
+            labels.add(dateFormat.format(periodCalendar.time).lowercase(Locale.getDefault()))
         }
+
+        // Since we collected periods from current to past, we need to reverse the lists
+        periods.reverse()
+        labels.reverse()
 
         return Pair(periods, labels)
     }

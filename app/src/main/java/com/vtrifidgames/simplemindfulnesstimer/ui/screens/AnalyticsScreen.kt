@@ -20,15 +20,24 @@ import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.axis.axisLabelComponent
 import com.patrykandpatrick.vico.compose.chart.column.columnChart
+import com.patrykandpatrick.vico.core.axis.AxisItemPlacer
 import com.patrykandpatrick.vico.core.axis.vertical.VerticalAxis
 import com.patrykandpatrick.vico.core.axis.AxisPosition
 import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
+import com.patrykandpatrick.vico.core.chart.draw.ChartDrawContext
+import com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider
 import com.patrykandpatrick.vico.core.chart.values.ChartValues
+import com.patrykandpatrick.vico.core.context.MeasureContext
+import com.patrykandpatrick.vico.core.entry.ChartEntryModel
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import com.vtrifidgames.simplemindfulnesstimer.data.database.MeditationDatabase
 import com.vtrifidgames.simplemindfulnesstimer.data.repository.MeditationRepository
 import com.vtrifidgames.simplemindfulnesstimer.viewmodel.*
 import java.util.Locale
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.pow
 
 @Composable
 fun AnalyticsScreen(navController: NavController) {
@@ -89,46 +98,36 @@ fun AnalyticsScreen(navController: NavController) {
         // ChartCards for each metric.
         VerticalChartCard(
             title = "Total Time Meditated",
-            valueDisplay = formatHumanDuration(analyticsData.totalMeditationTime.average().takeIf { !it.isNaN() } ?: 0.0),
             data = entryModelOf(*(analyticsData.totalMeditationTime.toTypedArray())),
             xAxisLabels = analyticsData.xAxisLabels,
-            xAxisTitle = "Time",
             yAxisTitle = "Seconds"
         )
         Spacer(modifier = Modifier.height(16.dp))
         VerticalChartCard(
             title = "Total Time (Incl. Paused)",
-            valueDisplay = formatHumanDuration(analyticsData.totalTime.average().takeIf { !it.isNaN() } ?: 0.0),
             data = entryModelOf(*(analyticsData.totalTime.toTypedArray())),
             xAxisLabels = analyticsData.xAxisLabels,
-            xAxisTitle = "Time",
             yAxisTitle = "Seconds"
         )
         Spacer(modifier = Modifier.height(16.dp))
         VerticalChartCard(
             title = "Number of Sessions",
-            valueDisplay = if (analyticsData.sessions.average().isNaN() || analyticsData.sessions.average() == 0.0) "" else String.format(Locale.getDefault(), "%.1f", analyticsData.sessions.average()),
             data = entryModelOf(*(analyticsData.sessions.toTypedArray())),
             xAxisLabels = analyticsData.xAxisLabels,
-            xAxisTitle = "Time",
             yAxisTitle = "Count"
         )
         Spacer(modifier = Modifier.height(16.dp))
         VerticalChartCard(
             title = "Number of Pauses",
-            valueDisplay = if (analyticsData.pauses.average().isNaN() || analyticsData.pauses.average() == 0.0) "" else String.format(Locale.getDefault(), "%.1f", analyticsData.pauses.average()),
             data = entryModelOf(*(analyticsData.pauses.toTypedArray())),
             xAxisLabels = analyticsData.xAxisLabels,
-            xAxisTitle = "Time",
             yAxisTitle = "Count"
         )
         Spacer(modifier = Modifier.height(16.dp))
         VerticalChartCard(
             title = "Average Rating",
-            valueDisplay = if (analyticsData.rating.average().isNaN() || analyticsData.rating.average() == 0.0) "" else String.format(Locale.getDefault(), "%.1f", analyticsData.rating.average()),
             data = entryModelOf(*(analyticsData.rating.toTypedArray())),
             xAxisLabels = analyticsData.xAxisLabels,
-            xAxisTitle = "Time",
             yAxisTitle = "Rating"
         )
 
@@ -148,31 +147,153 @@ fun AnalyticsScreen(navController: NavController) {
 @Composable
 fun VerticalChartCard(
     title: String,
-    valueDisplay: String,
-    data: com.patrykandpatrick.vico.core.entry.ChartEntryModel,
+    data: ChartEntryModel,
     xAxisLabels: List<String>,
-    xAxisTitle: String,
     yAxisTitle: String
 ) {
     // Create an axis label component for the axes.
-    val label = com.patrykandpatrick.vico.compose.axis.axisLabelComponent()
-    // Create a vertical axis (start) with default parameters.
+    val label = axisLabelComponent()
+
+    // Compute maxY and minY from the data.
+    val maxYData = data.maxY
+    val minY = 0f // For all charts, starting from 0
+
+    // Determine tickStep and valueFormatter based on yAxisTitle and maxYData
+    val (tickStep, valueFormatter) = when (yAxisTitle) {
+        "Rating" -> {
+            // Ratings from 1 to 5
+            Pair(1f, AxisValueFormatter<AxisPosition.Vertical.Start> { value, _ ->
+                value.toInt().toString()
+            })
+        }
+        "Count" -> {
+            // For counts (e.g., pauses, sessions), compute nice tick step
+            val tickStep = calculateNiceTickStep(maxYData, 5).coerceAtLeast(1f)
+            Pair(tickStep, AxisValueFormatter<AxisPosition.Vertical.Start> { value, _ ->
+                value.toInt().toString()
+            })
+        }
+        "Seconds" -> {
+            // For times, compute nice time-based tick step
+            val tickStep = calculateNiceTimeTickStep(maxYData, 5)
+            Pair(tickStep, AxisValueFormatter<AxisPosition.Vertical.Start> { value, _ ->
+                val totalSeconds = value.toInt()
+                val minutes = totalSeconds / 60
+                val seconds = totalSeconds % 60
+                when {
+                    totalSeconds < 60 -> "${totalSeconds}s"
+                    seconds == 0 -> "${minutes}m"
+                    else -> "${minutes}m ${seconds}s"
+                }
+            })
+        }
+        else -> {
+            // Default, compute tick step
+            val tickStep = calculateNiceTickStep(maxYData, 5)
+            Pair(tickStep, AxisValueFormatter<AxisPosition.Vertical.Start> { value, _ ->
+                value.toString()
+            })
+        }
+    }
+
+    // Adjusted maxY to the next multiple of tickStep
+    val adjustedMaxY = ((ceil(maxYData / tickStep) * tickStep)).toFloat()
+
+    // Implement a custom AxisItemPlacer.Vertical
+    val itemPlacer = object : AxisItemPlacer.Vertical {
+        override fun getLabelValues(
+            context: ChartDrawContext,
+            axisHeight: Float,
+            maxLabelHeight: Float,
+            position: AxisPosition.Vertical
+        ): List<Float> {
+            return generateTickPositions()
+        }
+
+        override fun getHeightMeasurementLabelValues(
+            context: MeasureContext,
+            position: AxisPosition.Vertical
+        ): List<Float> {
+            return generateTickPositions()
+        }
+
+        override fun getWidthMeasurementLabelValues(
+            context: MeasureContext,
+            axisHeight: Float,
+            maxLabelHeight: Float,
+            position: AxisPosition.Vertical
+        ): List<Float> {
+            return generateTickPositions()
+        }
+
+        override fun getLineValues(
+            context: ChartDrawContext,
+            axisHeight: Float,
+            maxLabelHeight: Float,
+            position: AxisPosition.Vertical
+        ): List<Float>? {
+            // Return null to use label positions for lines
+            return null
+        }
+
+        override fun getTopVerticalAxisInset(
+            verticalLabelPosition: VerticalAxis.VerticalLabelPosition,
+            maxLabelHeight: Float,
+            maxLineThickness: Float
+        ): Float {
+            // Return any required top inset (adjust if necessary)
+            return 0f
+        }
+
+        override fun getBottomVerticalAxisInset(
+            verticalLabelPosition: VerticalAxis.VerticalLabelPosition,
+            maxLabelHeight: Float,
+            maxLineThickness: Float
+        ): Float {
+            // Return any required bottom inset (adjust if necessary)
+            return 0f
+        }
+
+        // Helper function to generate tick positions
+        private fun generateTickPositions(): List<Float> {
+            val positions = mutableListOf<Float>()
+            var currentValue = minY
+            while (currentValue <= adjustedMaxY) {
+                positions.add(currentValue)
+                currentValue += tickStep
+            }
+            return positions
+        }
+    }
+
+    // Configure the start axis with the custom item placer and value formatter
     val startAxis = rememberStartAxis(
         label = label,
+        valueFormatter = valueFormatter,
+        itemPlacer = itemPlacer,
         horizontalLabelPosition = VerticalAxis.HorizontalLabelPosition.Outside
     )
-    // Create an AxisValueFormatter for custom x-axis labels.
+
+    // X-axis formatter remains the same.
     val xAxisValueFormatter = object : AxisValueFormatter<AxisPosition.Horizontal.Bottom> {
         override fun formatValue(value: Float, chartValues: ChartValues): CharSequence {
             val index = value.toInt()
             return xAxisLabels.getOrElse(index) { "" }
         }
     }
-    // Create a horizontal axis (bottom) with custom labels.
     val bottomAxis = rememberBottomAxis(
         label = label,
         valueFormatter = xAxisValueFormatter
     )
+
+    // Configure the chart with axisValuesOverrider to fix minY and maxY
+    val chart = columnChart().apply {
+        axisValuesOverrider = AxisValuesOverrider.fixed(
+            minY = minY,
+            maxY = adjustedMaxY
+        )
+    }
+
     OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -188,14 +309,11 @@ fun VerticalChartCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = title, style = MaterialTheme.typography.titleMedium)
-                if (valueDisplay.isNotEmpty()) {
-                    Text(text = valueDisplay, style = MaterialTheme.typography.bodyLarge)
-                }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            // Render the chart with axes.
+            // Render the chart with the custom axes.
             Chart(
-                chart = columnChart(),
+                chart = chart,
                 model = data,
                 startAxis = startAxis,
                 bottomAxis = bottomAxis,
@@ -205,15 +323,34 @@ fun VerticalChartCard(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = xAxisTitle,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-            Text(
                 text = yAxisTitle,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.align(Alignment.Start)
             )
         }
     }
+}
+
+// Adjusted calculateNiceTickStep function
+fun calculateNiceTickStep(maxValue: Float, tickCount: Int): Float {
+    if (maxValue <= 0f) return 1f
+    val rawStep = maxValue / tickCount
+    val exponent = floor(log10(rawStep.toDouble())).toInt()
+    val base = 10f.pow(exponent.toFloat())
+    // Choose from a set of multipliers.
+    val possibleSteps = listOf(1f, 2f, 5f, 10f, 20f, 50f).map { it * base }
+    val tickStep = possibleSteps.firstOrNull { it >= rawStep } ?: (10f * base)
+    return tickStep.coerceAtLeast(1f) // Ensure tickStep is at least 1
+}
+
+// New calculateNiceTimeTickStep function
+fun calculateNiceTimeTickStep(maxValue: Float, tickCount: Int): Float {
+    if (maxValue <= 0f) return 30f // Default to 30 seconds
+    val rawStep = maxValue / tickCount
+    val possibleSteps = listOf(
+        15f, 30f, 45f,
+        60f, 90f, 120f, 150f, 180f, 210f, 240f, 270f, 300f,
+        600f, 900f, 1200f, 1500f, 1800f, 3600f
+    )
+    return possibleSteps.firstOrNull { it >= rawStep } ?: possibleSteps.last()
 }
