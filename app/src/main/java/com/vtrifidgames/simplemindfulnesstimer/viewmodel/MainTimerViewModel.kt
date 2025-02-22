@@ -93,7 +93,7 @@ class MainTimerViewModel(
         if (_uiState.value.timerStatus == TimerStatus.RUNNING) return
 
         sessionStartTime = System.currentTimeMillis()
-        pauseCount = 0  // Reset pause count when starting.
+        pauseCount = 0
 
         if (_uiState.value.timerStatus == TimerStatus.STOPPED) {
             _uiState.value = _uiState.value.copy(timeLeft = _uiState.value.totalDuration)
@@ -101,25 +101,32 @@ class MainTimerViewModel(
 
         _uiState.value = _uiState.value.copy(timerStatus = TimerStatus.RUNNING)
 
-        timerJob = viewModelScope.launch {
-            while (_uiState.value.timeLeft > 0 && _uiState.value.timerStatus == TimerStatus.RUNNING) {
-                delay(1000)
-                val currentTimeLeft = _uiState.value.timeLeft - 1
-                _uiState.value = _uiState.value.copy(timeLeft = currentTimeLeft)
+        // Calculate the target end time based on the configured duration.
+        val targetTime = System.currentTimeMillis() + _uiState.value.totalDuration * 1000L
 
+        timerJob = viewModelScope.launch {
+            while (_uiState.value.timerStatus == TimerStatus.RUNNING) {
+                val remainingSeconds = ((targetTime - System.currentTimeMillis()) / 1000).coerceAtLeast(0L)
+                _uiState.value = _uiState.value.copy(timeLeft = remainingSeconds)
+
+                // Optionally play the interval bell if conditions are met.
                 if (_uiState.value.intervalBellEnabled &&
-                    currentTimeLeft > 0 &&
-                    (currentTimeLeft % _uiState.value.intervalBell == 0L)
+                    remainingSeconds > 0 &&
+                    (remainingSeconds % _uiState.value.intervalBell == 0L)
                 ) {
                     playIntervalBell()
                 }
+
+                if (remainingSeconds <= 0) break
+                delay(200)  // Check more frequently for smoother updates.
             }
-            if (_uiState.value.timeLeft <= 0 && _uiState.value.timerStatus == TimerStatus.RUNNING) {
+            if (_uiState.value.timerStatus == TimerStatus.RUNNING) {
                 _uiState.value = _uiState.value.copy(timerStatus = TimerStatus.FINISHED)
                 alarmPlayer.playAlarm()
             }
         }
     }
+
 
     fun pauseTimer() {
         if (_uiState.value.timerStatus == TimerStatus.RUNNING) {
