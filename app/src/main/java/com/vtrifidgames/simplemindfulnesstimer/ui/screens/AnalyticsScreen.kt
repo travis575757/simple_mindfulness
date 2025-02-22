@@ -220,7 +220,7 @@ fun VerticalChartCard(
     }
 
     // Adjusted maxY to the next multiple of tickStep
-    val adjustedMaxY = ((ceil(maxYData / tickStep) * tickStep)).toFloat()
+    val adjustedMaxY = if (maxYData <= 0f) tickStep else ((ceil(maxYData / tickStep) * tickStep)).toFloat()
 
     // Implement a custom AxisItemPlacer.Vertical
     val itemPlacer = object : AxisItemPlacer.Vertical {
