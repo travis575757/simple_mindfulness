@@ -73,7 +73,7 @@ fun SettingsScreen(navController: NavController) {
         // "Use Bell" Switch.
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(horizontal=4.dp, vertical=0.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
         ) {
             Text(text = "Use Bell", modifier = Modifier.weight(1f))
             Switch(
@@ -91,7 +91,7 @@ fun SettingsScreen(navController: NavController) {
                 readOnly = true,
                 label = { Text("Bell Interval (MM:SS)") },
                 modifier = Modifier.fillMaxWidth(),
-                colors =  OutlinedTextFieldDefaults.colors(
+                colors = OutlinedTextFieldDefaults.colors(
                     disabledTextColor = LocalContentColor.current,
                     disabledLabelColor = LocalContentColor.current.copy(alpha = 0.5f),
                     disabledBorderColor = LocalContentColor.current.copy(alpha = 0.5f)
@@ -116,7 +116,7 @@ fun SettingsScreen(navController: NavController) {
                 readOnly = true,
                 label = { Text("Meditation Duration (MM:SS)") },
                 modifier = Modifier.fillMaxWidth(),
-                colors =  OutlinedTextFieldDefaults.colors(
+                colors = OutlinedTextFieldDefaults.colors(
                     disabledTextColor = LocalContentColor.current,
                     disabledLabelColor = LocalContentColor.current.copy(alpha = 0.5f),
                     disabledBorderColor = LocalContentColor.current.copy(alpha = 0.5f)
@@ -130,6 +130,23 @@ fun SettingsScreen(navController: NavController) {
                     }
             )
         }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Retrieve and display version info.
+        val packageInfo = remember {
+            context.packageManager.getPackageInfo(context.packageName, 0)
+        }
+        val versionName = packageInfo.versionName
+        val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            packageInfo.longVersionCode
+        } else {
+            packageInfo.versionCode.toLong()
+        }
+
+        Text(
+            text = "Version: ${packageInfo.versionName} ($versionCode)",
+            style = MaterialTheme.typography.labelSmall
+        )
     }
 
     if (showBellPicker) {
