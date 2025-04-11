@@ -63,31 +63,41 @@ fun DashboardScreen(navController: NavController) {
             textAlign = TextAlign.Center,
             fontFamily = FontFamily.Cursive,
             style = MaterialTheme.typography.displayLarge,
-            modifier = Modifier.padding(bottom = 24.dp).align(Alignment.CenterHorizontally)
+            modifier = Modifier
+                .padding(bottom = 24.dp)
+                .align(Alignment.CenterHorizontally)
         )
-        // Card containing the metrics.
-        if (metrics.streak > 0 || metrics.lastWeekDuration > 0 || metrics.totalDuration > 0) {
+        // Build a list of metric items to display only if the value is non-zero.
+        val metricsList = mutableListOf<Pair<String, String>>()
+        if (metrics.streak > 0) {
+            metricsList.add("Streak" to "${metrics.streak} day(s)")
+        }
+        if (metrics.lastWeekDuration > 0) {
+            metricsList.add("Last Week" to formatDurationHuman(metrics.lastWeekDuration))
+        }
+        if (metrics.totalDuration > 0) {
+            metricsList.add("Total" to formatDurationHuman(metrics.totalDuration))
+        }
+        // Only display the card if we have any metric to show.
+        if (metricsList.isNotEmpty()) {
             OutlinedCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 24.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    // Only display a metric if its value is nonzero.
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "Streak", style = MaterialTheme.typography.titleMedium)
-                            Text(text = "${metrics.streak} day(s)", style = MaterialTheme.typography.bodyLarge)
+                    metricsList.forEachIndexed { index, metric ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = metric.first, style = MaterialTheme.typography.titleMedium)
+                            Text(text = metric.second, style = MaterialTheme.typography.bodyLarge)
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "Last Week", style = MaterialTheme.typography.titleMedium)
-                            Text(text = formatDurationHuman(metrics.lastWeekDuration), style = MaterialTheme.typography.bodyLarge)
+                        if (index != metricsList.lastIndex) {
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "Total", style = MaterialTheme.typography.titleMedium)
-                            Text(text = formatDurationHuman(metrics.totalDuration), style = MaterialTheme.typography.bodyLarge)
-                        }
+                    }
                 }
             }
         }
