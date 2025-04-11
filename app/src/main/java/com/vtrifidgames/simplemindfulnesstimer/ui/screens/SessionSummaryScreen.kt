@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -81,7 +82,9 @@ fun SessionSummaryScreen(navController: NavController) {
     // Local states for note editing.
     var showNoteEditor by remember { mutableStateOf(false) }
     var noteText by remember { mutableStateOf("") }
-    var showRemoveNoteDialog by remember { mutableStateOf(false) }
+
+    // State for the delete confirmation dialog.
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     // More human-readable date/time format.
     val dateFormat = SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault())
@@ -168,14 +171,14 @@ fun SessionSummaryScreen(navController: NavController) {
         val currentSession = session
         if (currentSession != null) {
             if (!currentSession.notes.isNullOrBlank() && !showNoteEditor) {
-                // Display the current note with a Remove Note button.
+                // Display the current note with an Edit Note button.
                 Text(
                     text = "Note: ${currentSession.notes}",
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Button(onClick = { showRemoveNoteDialog = true }) {
-                    Text("Remove Note")
+                Button(onClick = { showNoteEditor = true }) {
+                    Text("Edit Note")
                 }
             } else {
                 if (!showNoteEditor) {
@@ -191,54 +194,80 @@ fun SessionSummaryScreen(navController: NavController) {
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            showNoteEditor = false
-                            noteText = ""
-                        }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("Cancel")
+                        Button(
+                            onClick = {
+                                showNoteEditor = false
+                                noteText = ""
+                            }
+                        ) {
+                            Text("Cancel")
+                        }
+                        Button(
+                            onClick = {
+                                viewModel.updateNotes(noteText)
+                                showNoteEditor = false
+                                noteText = ""
+                            }
+                        ) {
+                            Text("Save Note")
+                        }
                     }
                 }
             }
         }
 
-        if (showRemoveNoteDialog) {
-            AlertDialog(
-                onDismissRequest = { showRemoveNoteDialog = false },
-                title = { Text("Confirm Removal") },
-                text = { Text("Are you sure you want to remove the note?") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        viewModel.updateNotes("")
-                        showRemoveNoteDialog = false
-                    }) {
-                        Text("Remove")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showRemoveNoteDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
-        }
-
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 4) Done Button - note submission is handled here
-        Button(
-            onClick = {
-                if (showNoteEditor && noteText.isNotBlank()) {
-                    viewModel.updateNotes(noteText)
-                }
-                navController.navigate(Screen.Home.route)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = selectedStars > 0
+        // 4) Action Buttons: Done and Discard Session
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Done")
+            Button(
+                onClick = { navController.navigate(Screen.Home.route) },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Done")
+            }
+            Button(
+                onClick = { showDeleteDialog = true },
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Discard Session"
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Discard")
+            }
         }
     }
-}
 
+    // Delete confirmation dialog.
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Discard Session") },
+            text = { Text("Are you sure you want to discard this session? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteSession()
+                        showDeleteDialog = false
+                        navController.navigate(Screen.Home.route)
+                    }
+                ) {
+                    Text("Discard")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}

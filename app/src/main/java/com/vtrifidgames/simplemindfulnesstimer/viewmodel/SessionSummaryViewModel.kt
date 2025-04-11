@@ -49,4 +49,15 @@ class SessionSummaryViewModel(
             }
         }
     }
+
+    /**
+     * Delete (throw away) the current session.
+     */
+    fun deleteSession() {
+        viewModelScope.launch {
+            _session.value?.let { session ->
+                repository.delete(session)
+            }
+        }
+    }
 }
