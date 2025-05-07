@@ -96,15 +96,15 @@ class MainTimerViewModel(
         sessionStartTime = System.currentTimeMillis()
         pauseCount = 0
 
-        // Reset timeLeft if we're coming from a stopped state
         if (_uiState.value.timerStatus == TimerStatus.STOPPED) {
             _uiState.value = _uiState.value.copy(timeLeft = _uiState.value.totalDuration)
         }
 
         _uiState.value = _uiState.value.copy(timerStatus = TimerStatus.RUNNING)
-
-        // Initialize the mutable targetTime
         targetTime = System.currentTimeMillis() + _uiState.value.totalDuration * 1000L
+
+        // Track last-second so we only ring once per interval
+        var prevRemaining = -1L
 
         timerJob = viewModelScope.launch {
             while (_uiState.value.timerStatus == TimerStatus.RUNNING) {
@@ -112,16 +112,17 @@ class MainTimerViewModel(
                     .coerceAtLeast(0L)
                 _uiState.value = _uiState.value.copy(timeLeft = remainingSeconds)
 
-                // Play interval bell if enabled and on the exact second
                 if (_uiState.value.intervalBellEnabled &&
                     remainingSeconds > 0 &&
-                    remainingSeconds % _uiState.value.intervalBell == 0L
+                    remainingSeconds % _uiState.value.intervalBell == 0L &&
+                    remainingSeconds != prevRemaining
                 ) {
                     playIntervalBell()
                 }
 
+                prevRemaining = remainingSeconds
                 if (remainingSeconds <= 0) break
-                delay(200L)  // smoother UI updates
+                delay(200L)
             }
 
             if (_uiState.value.timerStatus == TimerStatus.RUNNING) {
