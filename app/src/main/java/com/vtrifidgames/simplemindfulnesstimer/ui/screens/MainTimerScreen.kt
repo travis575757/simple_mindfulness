@@ -86,7 +86,7 @@ fun MainTimerScreen(navController: NavController) {
                         value = preDisplayTime,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Bell Interval (MM:SS)") },
+                        label = { Text("Meditation Duration (MM:SS)") },
                         modifier = Modifier.fillMaxWidth(),
                         colors =  OutlinedTextFieldDefaults.colors(
                             disabledTextColor = LocalContentColor.current,
