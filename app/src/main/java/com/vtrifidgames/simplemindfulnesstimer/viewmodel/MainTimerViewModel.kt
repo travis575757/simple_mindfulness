@@ -53,6 +53,7 @@ class MainTimerViewModel(
 
     // New: Track number of pauses.
     private var pauseCount: Int = 0
+    private var targetTime: Long = 0L
 
     init {
         viewModelScope.launch {
@@ -95,31 +96,34 @@ class MainTimerViewModel(
         sessionStartTime = System.currentTimeMillis()
         pauseCount = 0
 
+        // Reset timeLeft if we're coming from a stopped state
         if (_uiState.value.timerStatus == TimerStatus.STOPPED) {
             _uiState.value = _uiState.value.copy(timeLeft = _uiState.value.totalDuration)
         }
 
         _uiState.value = _uiState.value.copy(timerStatus = TimerStatus.RUNNING)
 
-        // Calculate the target end time based on the configured duration.
-        val targetTime = System.currentTimeMillis() + _uiState.value.totalDuration * 1000L
+        // Initialize the mutable targetTime
+        targetTime = System.currentTimeMillis() + _uiState.value.totalDuration * 1000L
 
         timerJob = viewModelScope.launch {
             while (_uiState.value.timerStatus == TimerStatus.RUNNING) {
-                val remainingSeconds = ((targetTime - System.currentTimeMillis()) / 1000).coerceAtLeast(0L)
+                val remainingSeconds = ((targetTime - System.currentTimeMillis()) / 1000)
+                    .coerceAtLeast(0L)
                 _uiState.value = _uiState.value.copy(timeLeft = remainingSeconds)
 
-                // Optionally play the interval bell if conditions are met.
+                // Play interval bell if enabled and on the exact second
                 if (_uiState.value.intervalBellEnabled &&
                     remainingSeconds > 0 &&
-                    (remainingSeconds % _uiState.value.intervalBell == 0L)
+                    remainingSeconds % _uiState.value.intervalBell == 0L
                 ) {
                     playIntervalBell()
                 }
 
                 if (remainingSeconds <= 0) break
-                delay(200)  // Check more frequently for smoother updates.
+                delay(200L)  // smoother UI updates
             }
+
             if (_uiState.value.timerStatus == TimerStatus.RUNNING) {
                 _uiState.value = _uiState.value.copy(timerStatus = TimerStatus.FINISHED)
                 alarmPlayer.playAlarm()
@@ -127,6 +131,11 @@ class MainTimerViewModel(
         }
     }
 
+    fun addMinute() {
+        targetTime += 60_000L
+        val newLeft = ((targetTime - System.currentTimeMillis()) / 1000).coerceAtLeast(0L)
+        _uiState.value = _uiState.value.copy(timeLeft = newLeft, totalDuration = _uiState.value.totalDuration + 60)
+    }
 
     fun pauseTimer() {
         if (_uiState.value.timerStatus == TimerStatus.RUNNING) {

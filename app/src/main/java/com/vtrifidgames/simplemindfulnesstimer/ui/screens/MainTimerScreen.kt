@@ -136,6 +136,7 @@ fun MainTimerScreen(navController: NavController) {
                     Button(onClick = { viewModel.finishSession() }) {
                         Text("Finish")
                     }
+                    Button(onClick = { viewModel.addMinute() }) { Text("+1 min") }
                     Button(onClick = {
                         // On cancel, navigate to Home immediately.
                         navController.navigate(Screen.Home.route) {
