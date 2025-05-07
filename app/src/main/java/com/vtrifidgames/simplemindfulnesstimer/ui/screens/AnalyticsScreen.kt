@@ -151,7 +151,13 @@ fun AnalyticsScreen(navController: NavController) {
             xAxisLabels = analyticsData.xAxisLabels,
             yAxisTitle = "Rating"
         )
-
+        Spacer(modifier = Modifier.height(16.dp))
+        VerticalChartCard(
+            title = "Score",
+            data = entryModelOf(*(analyticsData.score.toTypedArray())),
+            xAxisLabels = analyticsData.xAxisLabels,
+            yAxisTitle = "Score"
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
         // Button to navigate to the session history.

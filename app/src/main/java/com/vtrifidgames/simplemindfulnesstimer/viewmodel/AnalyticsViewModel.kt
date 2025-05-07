@@ -49,6 +49,7 @@ class AnalyticsViewModel(private val repository: MeditationRepository) : ViewMod
         val sessionsCount = mutableListOf<Float>()
         val pauses = mutableListOf<Float>()
         val ratings = mutableListOf<Float>()
+        val score = mutableListOf<Float>() // ← new list for score
 
         for (period in periods) {
             val sessionsInPeriod = periodData[period] ?: emptyList()
@@ -60,11 +61,17 @@ class AnalyticsViewModel(private val repository: MeditationRepository) : ViewMod
                 sessionsInPeriod.map { ratingToFloat(it.rating) }.average().toFloat()
             } else 0f
 
+            // ← compute score = (durationMeditated in minutes) × rating
+            val scoreInPeriod = sessionsInPeriod.fold(0f) { acc, session ->
+                acc + (session.durationMeditated.toFloat() / 60f) * ratingToFloat(session.rating)
+            }
+
             totalMeditationTime.add(totalMeditationTimeInPeriod)
             totalTime.add(totalTimeInPeriod)
             sessionsCount.add(sessionsCountInPeriod)
             pauses.add(pausesInPeriod)
             ratings.add(averageRatingInPeriod)
+            score.add(scoreInPeriod) // ← add to score list
         }
 
         return AnalyticsData(
@@ -73,6 +80,7 @@ class AnalyticsViewModel(private val repository: MeditationRepository) : ViewMod
             sessions = sessionsCount,
             pauses = pauses,
             rating = ratings,
+            score = score,             // ← pass score into the data class
             xAxisLabels = labels
         )
     }
@@ -169,12 +177,12 @@ class AnalyticsViewModel(private val repository: MeditationRepository) : ViewMod
     }
 }
 
-// Data class to hold the state data for the analytics
 data class AnalyticsData(
     val totalMeditationTime: List<Float> = emptyList(),
     val totalTime: List<Float> = emptyList(),
     val sessions: List<Float> = emptyList(),
     val pauses: List<Float> = emptyList(),
     val rating: List<Float> = emptyList(),
+    val score: List<Float> = emptyList(),     // ← new field
     val xAxisLabels: List<String> = emptyList()
 )
