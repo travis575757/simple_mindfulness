@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vtrifidgames.simplemindfulnesstimer.data.database.MeditationSession
 import com.vtrifidgames.simplemindfulnesstimer.data.repository.MeditationRepository
+import com.vtrifidgames.simplemindfulnesstimer.data.database.Rating
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,5 +23,24 @@ class SessionDetailViewModel(
             _session.value = repository.getSessionById(sessionId)
         }
     }
-}
 
+    fun updateNotes(newNotes: String) {
+        viewModelScope.launch {
+            _session.value?.let { session ->
+                val updatedSession = session.copy(notes = newNotes)
+                repository.update(updatedSession)
+                _session.value = updatedSession
+            }
+        }
+    }
+
+    fun updateRating(newRating: Rating) {
+        viewModelScope.launch {
+            _session.value?.let { session ->
+                val updatedSession = session.copy(rating = newRating)
+                repository.update(updatedSession)
+                _session.value = updatedSession
+            }
+        }
+    }
+}

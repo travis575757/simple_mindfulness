@@ -1,10 +1,7 @@
 package com.vtrifidgames.simplemindfulnesstimer.ui.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -22,35 +19,17 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.vtrifidgames.simplemindfulnesstimer.data.database.MeditationDatabase
-import com.vtrifidgames.simplemindfulnesstimer.data.database.Rating
 import com.vtrifidgames.simplemindfulnesstimer.data.repository.MeditationRepository
 import com.vtrifidgames.simplemindfulnesstimer.ui.navigation.Screen
+import com.vtrifidgames.simplemindfulnesstimer.ui.components.StarRatingSelector
+import com.vtrifidgames.simplemindfulnesstimer.ui.components.ratingToStars
+import com.vtrifidgames.simplemindfulnesstimer.ui.components.starsToRating
 import com.vtrifidgames.simplemindfulnesstimer.viewmodel.SessionSummaryViewModel
 import com.vtrifidgames.simplemindfulnesstimer.viewmodel.SessionSummaryViewModelFactory
 import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.draw.alpha
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-// Convert a rating enum to the number of stars (1..5).
-private fun ratingToStars(rating: Rating): Int = when (rating) {
-    Rating.VERY_POOR -> 1
-    Rating.POOR -> 2
-    Rating.AVERAGE -> 3
-    Rating.GOOD -> 4
-    Rating.EXCELLENT -> 5
-}
-
-// Convert a number of stars (1..5) to a rating enum.
-private fun starsToRating(stars: Int): Rating = when (stars) {
-    1 -> Rating.VERY_POOR
-    2 -> Rating.POOR
-    3 -> Rating.AVERAGE
-    4 -> Rating.GOOD
-    5 -> Rating.EXCELLENT
-    else -> Rating.AVERAGE
-}
 
 @Composable
 fun SessionSummaryScreen(navController: NavController) {
@@ -143,27 +122,13 @@ fun SessionSummaryScreen(navController: NavController) {
         // 2) Star Rating
         Text(text = "Rate Your Session", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            for (star in 1..5) {
-                val icon = if (star <= selectedStars) Icons.Filled.Star else Icons.Outlined.Star
-                Icon(
-                    imageVector = icon,
-                    contentDescription = "Star $star",
-                    modifier = Modifier
-                        .size(40.dp)
-                        .padding(4.dp)
-                        .alpha(if (star > selectedStars) 0.25f else 1.0f)
-                        .clickable {
-                            selectedStars = star
-                            viewModel.updateRating(starsToRating(star))
-                        },
-                    tint = MaterialTheme.colorScheme.primary
-                )
+        StarRatingSelector(
+            selectedStars = selectedStars,
+            onStarSelected = { star ->
+                selectedStars = star
+                viewModel.updateRating(starsToRating(star))
             }
-        }
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -177,12 +142,18 @@ fun SessionSummaryScreen(navController: NavController) {
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Button(onClick = { showNoteEditor = true }) {
+                Button(onClick = {
+                    noteText = currentSession.notes.orEmpty()
+                    showNoteEditor = true
+                }) {
                     Text("Edit Note")
                 }
             } else {
                 if (!showNoteEditor) {
-                    Button(onClick = { showNoteEditor = true }) {
+                    Button(onClick = {
+                        noteText = currentSession.notes.orEmpty()
+                        showNoteEditor = true
+                    }) {
                         Text("Add Note")
                     }
                 }
